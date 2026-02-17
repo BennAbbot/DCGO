@@ -347,42 +347,29 @@ public class EX5_065 : CEntity_Effect
                                 {
                                     if (selectedCard.CanPlayJogress(true))
                                     {
-                                        JogressEvoRootsFrameIDs = new int[0];
+                                        int[] JogressEvoRootsFrameIDs = new int[0];
 
                                         yield return GManager.instance.photonWaitController.StartWait("SayoAndKou_EX5_065");
 
-                                        if (card.Owner.isYou || GManager.instance.IsAI)
+                                        GManager.instance.selectJogressEffect.SetUp_SelectDigivolutionRoots
+                                                                    (card: selectedCard,
+                                                                    isLocal: true,
+                                                                    isPayCost: true,
+                                                                    canNoSelect: true,
+                                                                    endSelectCoroutine_SelectDigivolutionRoots: EndSelectCoroutine_SelectDigivolutionRoots,
+                                                                    noSelectCoroutine: null);
+
+                                        yield return ContinuousController.instance.StartCoroutine(GManager.instance.selectJogressEffect.SelectDigivolutionRoots());
+
+                                        IEnumerator EndSelectCoroutine_SelectDigivolutionRoots(List<Permanent> permanents)
                                         {
-                                            GManager.instance.selectJogressEffect.SetUp_SelectDigivolutionRoots
-                                                                        (card: selectedCard,
-                                                                        isLocal: true,
-                                                                        isPayCost: true,
-                                                                        canNoSelect: true,
-                                                                        endSelectCoroutine_SelectDigivolutionRoots: EndSelectCoroutine_SelectDigivolutionRoots,
-                                                                        noSelectCoroutine: null);
-
-                                            yield return ContinuousController.instance.StartCoroutine(GManager.instance.selectJogressEffect.SelectDigivolutionRoots());
-
-                                            IEnumerator EndSelectCoroutine_SelectDigivolutionRoots(List<Permanent> permanents)
+                                            if (permanents.Count == 2)
                                             {
-                                                if (permanents.Count == 2)
-                                                {
-                                                    JogressEvoRootsFrameIDs = permanents.Distinct().ToArray().Map(permanent => permanent.PermanentFrame.FrameID);
-                                                }
-
-                                                yield return null;
+                                                JogressEvoRootsFrameIDs = permanents.Distinct().ToArray().Map(permanent => permanent.PermanentFrame.FrameID);
                                             }
 
-                                            photonView.RPC("SetJogressEvoRootsFrameIDs", RpcTarget.All, JogressEvoRootsFrameIDs);
+                                            yield return null;
                                         }
-
-                                        else
-                                        {
-                                            GManager.instance.commandText.OpenCommandText("The opponent is choosing a card to DNA digivolve.");
-                                        }
-
-                                        yield return new WaitWhile(() => !endSelect);
-                                        endSelect = false;
 
                                         GManager.instance.commandText.CloseCommandText();
                                         yield return new WaitWhile(() => GManager.instance.commandText.gameObject.activeSelf);
@@ -419,15 +406,5 @@ public class EX5_065 : CEntity_Effect
         }
 
         return cardEffects;
-    }
-
-    bool endSelect = false;
-    int[] JogressEvoRootsFrameIDs = new int[0];
-
-    [PunRPC]
-    public void SetJogressEvoRootsFrameIDs(int[] JogressEvoRootsFrameIDs)
-    {
-        this.JogressEvoRootsFrameIDs = JogressEvoRootsFrameIDs;
-        endSelect = true;
     }
 }

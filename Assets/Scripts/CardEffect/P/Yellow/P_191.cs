@@ -419,49 +419,36 @@ namespace DCGO.CardEffects.P
                             {
                                 if (selectedCard.CanPlayJogress(true))
                                 {
-                                    _jogressEvoRootsFrameIDs = new int[0];
+                                    int[] jogressEvoRootsFrameIDs = new int[0];
 
                                     yield return GManager.instance.photonWaitController.StartWait("Apollomon_P_191");
 
-                                    if (card.Owner.isYou || GManager.instance.IsAI)
+                                    GManager.instance.selectJogressEffect.SetUp_SelectDigivolutionRoots
+                                    (card: selectedCard,
+                                        isLocal: true,
+                                        isPayCost: true,
+                                        canNoSelect: true,
+                                        endSelectCoroutine_SelectDigivolutionRoots: EndSelectCoroutine_SelectDigivolutionRoots,
+                                        noSelectCoroutine: null);
+
+                                    yield return ContinuousController.instance.StartCoroutine(GManager.instance.selectJogressEffect
+                                        .SelectDigivolutionRoots());
+
+                                    IEnumerator EndSelectCoroutine_SelectDigivolutionRoots(List<Permanent> permanents)
                                     {
-                                        GManager.instance.selectJogressEffect.SetUp_SelectDigivolutionRoots
-                                        (card: selectedCard,
-                                            isLocal: true,
-                                            isPayCost: true,
-                                            canNoSelect: true,
-                                            endSelectCoroutine_SelectDigivolutionRoots: EndSelectCoroutine_SelectDigivolutionRoots,
-                                            noSelectCoroutine: null);
-
-                                        yield return ContinuousController.instance.StartCoroutine(GManager.instance.selectJogressEffect
-                                            .SelectDigivolutionRoots());
-
-                                        IEnumerator EndSelectCoroutine_SelectDigivolutionRoots(List<Permanent> permanents)
+                                        if (permanents.Count == 2)
                                         {
-                                            if (permanents.Count == 2)
-                                            {
-                                                _jogressEvoRootsFrameIDs = permanents.Distinct().ToArray()
-                                                    .Map(permanent => permanent.PermanentFrame.FrameID);
-                                            }
-
-                                            yield return null;
+                                            jogressEvoRootsFrameIDs = permanents.Distinct().ToArray()
+                                                .Map(permanent => permanent.PermanentFrame.FrameID);
                                         }
 
-                                        photonView.RPC("SetJogressEvoRootsFrameIDs", RpcTarget.All, _jogressEvoRootsFrameIDs);
+                                        yield return null;
                                     }
-                                    else
-                                    {
-                                        GManager.instance.commandText.OpenCommandText(
-                                            "The opponent is choosing a card to DNA digivolve.");
-                                    }
-
-                                    yield return new WaitWhile(() => !_endSelect);
-                                    _endSelect = false;
 
                                     GManager.instance.commandText.CloseCommandText();
                                     yield return new WaitWhile(() => GManager.instance.commandText.gameObject.activeSelf);
 
-                                    if (_jogressEvoRootsFrameIDs.Length == 2)
+                                    if (jogressEvoRootsFrameIDs.Length == 2)
                                     {
                                         yield return ContinuousController.instance.StartCoroutine(GManager.instance
                                             .GetComponent<Effects>().ShowCardEffect(new List<CardSource>() { selectedCard },
@@ -476,7 +463,7 @@ namespace DCGO.CardEffects.P
                                             root: SelectCardEffect.Root.Hand,
                                             activateETB: true);
 
-                                        playCard.SetJogress(_jogressEvoRootsFrameIDs);
+                                        playCard.SetJogress(jogressEvoRootsFrameIDs);
 
                                         yield return ContinuousController.instance.StartCoroutine(playCard.PlayCard());
                                     }
@@ -616,19 +603,5 @@ namespace DCGO.CardEffects.P
 
             return cardEffects;
         }
-
-        #region End of your turn DNA required
-
-        private bool _endSelect = false;
-        private int[] _jogressEvoRootsFrameIDs = new int[0];
-
-        [PunRPC]
-        public void SetJogressEvoRootsFrameIDs(int[] JogressEvoRootsFrameIDs)
-        {
-            this._jogressEvoRootsFrameIDs = JogressEvoRootsFrameIDs;
-            _endSelect = true;
-        }
-
-        #endregion
     }
 }

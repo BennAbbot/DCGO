@@ -56,39 +56,21 @@ namespace DCGO.CardEffects.EX4
                     {
                         if (card.Owner.GetBattleAreaDigimons().Contains(card.PermanentOfThisCard()))
                         {
-                            yield return GManager.instance.photonWaitController.StartWait("Kuresgarurumon_Select_ETB");
-
-                            if (card.Owner.isYou)
+                            List<SelectionElement<int>> selectionElements = new List<SelectionElement<int>>()
                             {
-                                GManager.instance.commandText.OpenCommandText("Which effect will you activate?");
+                                new SelectionElement<int>(message: $"Deck Bounce", value : 0, spriteIndex: 0),
+                                new SelectionElement<int>(message: $"Your other 1 Digimon digivolves", value : 1, spriteIndex: 0),
+                                new SelectionElement<int>(message: $"DNA Digivolution", value : 2, spriteIndex: 0),
+                            };
 
-                                List<Command_SelectCommand> command_SelectCommands = new List<Command_SelectCommand>()
-                                {
-                                    new Command_SelectCommand($"Deck Bounce", () => photonView.RPC("SetActionID", RpcTarget.All, 0), 0),
-                                    new Command_SelectCommand($"Your other 1 Digimon digivolves", () => photonView.RPC("SetActionID", RpcTarget.All, 1), 0),
-                                    new Command_SelectCommand($"DNA Digivolution", () => photonView.RPC("SetActionID", RpcTarget.All, 2), 0),
-                                };
+                            string selectPlayerMessage = "Which effect will you activate?";
+                            string notSelectPlayerMessage = "The opponent is choosing which effect to activate.";
 
-                                GManager.instance.selectCommandPanel.SetUpCommandButton(command_SelectCommands);
-                            }
+                            GManager.instance.userSelectionManager.SetIntSelection(selectionElements: selectionElements, selectPlayer: card.Owner, selectPlayerMessage: selectPlayerMessage, notSelectPlayerMessage: notSelectPlayerMessage);
 
-                            else
-                            {
-                                GManager.instance.commandText.OpenCommandText("The opponent is choosing which effect to activate.");
+                            yield return ContinuousController.instance.StartCoroutine(GManager.instance.userSelectionManager.WaitForEndSelect());
 
-                                #region AI
-                                if (GManager.instance.IsAI)
-                                {
-                                    SetActionID(UnityEngine.Random.Range(0, 3));
-                                }
-                                #endregion
-                            }
-
-                            yield return new WaitWhile(() => !endSelect);
-                            endSelect = false;
-
-                            GManager.instance.commandText.CloseCommandText();
-                            yield return new WaitWhile(() => GManager.instance.commandText.gameObject.activeSelf);
+                            int actionID = GManager.instance.userSelectionManager.SelectedIntValue;
 
                             switch (actionID)
                             {
@@ -416,59 +398,46 @@ namespace DCGO.CardEffects.EX4
                                                 {
                                                     if (selectedCard.CanPlayJogress(true) && selectedCard.CanJogressFromTargetPermanent(card.PermanentOfThisCard(), true))
                                                     {
-                                                        JogressEvoRootsFrameIDs = new int[0];
+                                                        int[] JogressEvoRootsFrameIDs = new int[0];
 
                                                         yield return GManager.instance.photonWaitController.StartWait("Jogress_Kuresgarurumon_EX4_049");
 
-                                                        if (card.Owner.isYou || GManager.instance.IsAI)
+                                                        GManager.instance.selectJogressEffect.SetUp_SelectDigivolutionRoots
+                                                                                   (card: selectedCard,
+                                                                                   isLocal: true,
+                                                                                   isPayCost: true,
+                                                                                   canNoSelect: true,
+                                                                                   endSelectCoroutine_SelectDigivolutionRoots: EndSelectCoroutine_SelectDigivolutionRoots,
+                                                                                   noSelectCoroutine: null);
+
+                                                        GManager.instance.selectJogressEffect.SetUpCustomPermanentConditions(new Func<Permanent, bool>[] { (permanent) => permanent == card.PermanentOfThisCard() });
+
+                                                        yield return ContinuousController.instance.StartCoroutine(GManager.instance.selectJogressEffect.SelectDigivolutionRoots());
+
+                                                        IEnumerator EndSelectCoroutine_SelectDigivolutionRoots(List<Permanent> permanents)
                                                         {
-                                                            GManager.instance.selectJogressEffect.SetUp_SelectDigivolutionRoots
-                                                                                       (card: selectedCard,
-                                                                                       isLocal: true,
-                                                                                       isPayCost: true,
-                                                                                       canNoSelect: true,
-                                                                                       endSelectCoroutine_SelectDigivolutionRoots: EndSelectCoroutine_SelectDigivolutionRoots,
-                                                                                       noSelectCoroutine: null);
+                                                            permanents = permanents.Distinct().ToList();
 
-                                                            GManager.instance.selectJogressEffect.SetUpCustomPermanentConditions(new Func<Permanent, bool>[] { (permanent) => permanent == card.PermanentOfThisCard() });
-
-                                                            yield return ContinuousController.instance.StartCoroutine(GManager.instance.selectJogressEffect.SelectDigivolutionRoots());
-
-                                                            IEnumerator EndSelectCoroutine_SelectDigivolutionRoots(List<Permanent> permanents)
+                                                            if (permanents.Count == 2)
                                                             {
-                                                                permanents = permanents.Distinct().ToList();
+                                                                JogressEvoRootsFrameIDs = new int[2];
 
-                                                                if (permanents.Count == 2)
+                                                                for (int i = 0; i < permanents.Count; i++)
                                                                 {
-                                                                    JogressEvoRootsFrameIDs = new int[2];
-
-                                                                    for (int i = 0; i < permanents.Count; i++)
+                                                                    if (i < JogressEvoRootsFrameIDs.Length)
                                                                     {
-                                                                        if (i < JogressEvoRootsFrameIDs.Length)
-                                                                        {
-                                                                            JogressEvoRootsFrameIDs[i] = permanents[i].PermanentFrame.FrameID;
-                                                                        }
+                                                                        JogressEvoRootsFrameIDs[i] = permanents[i].PermanentFrame.FrameID;
                                                                     }
                                                                 }
-
-                                                                if (!permanents.Contains(card.PermanentOfThisCard()))
-                                                                {
-                                                                    JogressEvoRootsFrameIDs = new int[0];
-                                                                }
-
-                                                                yield return null;
                                                             }
 
-                                                            photonView.RPC("SetJogressEvoRootsFrameIDs", RpcTarget.All, JogressEvoRootsFrameIDs);
-                                                        }
+                                                            if (!permanents.Contains(card.PermanentOfThisCard()))
+                                                            {
+                                                                JogressEvoRootsFrameIDs = new int[0];
+                                                            }
 
-                                                        else
-                                                        {
-                                                            GManager.instance.commandText.OpenCommandText("The opponent is choosing a card to DNA digivolve.");
+                                                            yield return null;
                                                         }
-
-                                                        yield return new WaitWhile(() => !endSelect);
-                                                        endSelect = false;
 
                                                         GManager.instance.commandText.CloseCommandText();
                                                         yield return new WaitWhile(() => GManager.instance.commandText.gameObject.activeSelf);
@@ -577,25 +546,6 @@ namespace DCGO.CardEffects.EX4
             }
 
             return cardEffects;
-        }
-
-        bool endSelect = false;
-        int actionID = -1;
-
-        [PunRPC]
-        public void SetActionID(int actionID)
-        {
-            this.actionID = actionID;
-            endSelect = true;
-        }
-
-        int[] JogressEvoRootsFrameIDs = new int[0];
-
-        [PunRPC]
-        public void SetJogressEvoRootsFrameIDs(int[] JogressEvoRootsFrameIDs)
-        {
-            this.JogressEvoRootsFrameIDs = JogressEvoRootsFrameIDs;
-            endSelect = true;
         }
     }
 }
