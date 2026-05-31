@@ -150,7 +150,7 @@ public class RoomManager : MonoBehaviourPunCallbacks
                 }
             };
 
-            string RoomName = StringUtils.GeneratePassword_Num(5);
+            string RoomName = "HelloWorld";// StringUtils.GeneratePassword_Num(5);
 
             //Create Room
             PhotonNetwork.CreateRoom(RoomName + "-" + ContinuousController.instance.useBanlist, roomOptions, null);

@@ -7,14 +7,6 @@ namespace DCGO.Networking
 {
     public class DCGONetwork : MonoBehaviour
     {
-        public static INetworkProvider Provider { get; private set; }
-
-        [SerializeField]
-        INetworkProvider _provider;
-
-        public void Awake()
-        {
-            Provider = _provider;
-        }
+        public static INetworkProvider Provider { get; set; }
     }
 }

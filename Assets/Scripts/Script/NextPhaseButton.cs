@@ -1,6 +1,4 @@
 ﻿using DCGO.Networking;
-using Photon;
-using Photon.Pun;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -10,7 +8,7 @@ using UnityEngine.Events;
 using UnityEngine.TextCore.Text;
 using UnityEngine.UI;
 
-public class NextPhaseButton : MonoBehaviourPunCallbacks
+public class NextPhaseButton : MonoBehaviour
 {
     [Header("ボタンテキスト")]
     public TextMeshProUGUI ButtonText;

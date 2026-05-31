@@ -77,7 +77,7 @@ public class SelectBattleDeck : MonoBehaviour
 
         ContinuousController.instance.BattleDeckData = deckInfoPanel.ShowingDeckData;
 
-        Opening.instance.battle.lobbyManager_RandomMatch.SetUpLobby();
+        Opening.instance.battle.lobbyManager_RandomMatch.StartMatchmaking();
     }
 
     public void OnClickSelectButton_BotMatch()

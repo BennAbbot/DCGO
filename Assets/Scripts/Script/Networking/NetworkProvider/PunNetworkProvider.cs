@@ -1,12 +1,14 @@
 using DCGO.Networking;
 using Photon.Pun;
+using Photon.Realtime;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using static LobbyManager_FriendMatch;
 using Hashtable = ExitGames.Client.Photon.Hashtable;
 
-public class PunNetworkProvider : MonoBehaviourPun, INetworkProvider
+public class PunNetworkProvider : MonoBehaviourPunCallbacks, INetworkProvider
 {
     Player[] _player = null;
 
@@ -16,27 +18,233 @@ public class PunNetworkProvider : MonoBehaviourPun, INetworkProvider
     public LobbyNetworkEvents LobbyEvents => _lobbyEvents;
     private LobbyNetworkEvents _lobbyEvents = new LobbyNetworkEvents();
 
+    public MatchmakingEvents MatchmakingEvents => _matchmakingEvents;
+    private MatchmakingEvents _matchmakingEvents = new MatchmakingEvents();
+
     public GameState GameState => _gameState;
     private GameState _gameState = GameState.Menu;
+
+    string RandomMatchKey = "RandomMatchKey";
+
+    List<RoomInfo> _matchmakingRooms = new List<RoomInfo>();
+
+    public void Awake()
+    {
+        DCGONetwork.Provider = this;
+    }
 
     public void Initialise()
     {
         _gameState = GameState.Menu;
     }
 
-
-
     public void StartMatchmaking(MatchmakingEvents MatchmakingEvents)
     {
-
+        _matchmakingEvents = MatchmakingEvents;
+        _gameState = GameState.Matchmaking;
+        StartCoroutine(MatchmakingCoroutine());
     }
 
-    public GameNetworkEvents InitGame(Player[] players)
+    public IEnumerator MatchmakingCoroutine()
     {
-        _gameEvents = new GameNetworkEvents();
-        _player = players;
+        if (PhotonNetwork.InLobby)
+        {
+            PhotonNetwork.LeaveLobby();
+        }
 
-        return GameEvents;
+        yield return new WaitWhile(() => PhotonNetwork.InLobby);
+
+        if (PhotonNetwork.IsConnected)
+        {
+            PhotonNetwork.Disconnect();
+        }
+
+        yield return new WaitWhile(() => PhotonNetwork.IsConnected);
+
+        yield return ContinuousController.instance.StartCoroutine(PhotonUtility.ConnectToLobbyCoroutine());
+
+        yield return ContinuousController.instance.StartCoroutine(PhotonUtility.SignUpBattleDeckData());
+
+        if (_matchmakingEvents.OnConnected != null)
+        {
+            _matchmakingEvents.OnConnected(true);
+        }
+
+        StartRandomMatch();
+
+        yield return new WaitWhile(() => !PhotonNetwork.InRoom);
+
+        yield return new WaitWhile(() => PhotonNetwork.CurrentRoom.PlayerCount != PhotonNetwork.CurrentRoom.MaxPlayers);
+
+        _gameState = GameState.InGame;
+        PhotonNetwork.CurrentRoom.IsVisible = false;
+
+        if (_matchmakingEvents.OnMatchFound != null)
+        {
+            _matchmakingEvents.OnMatchFound();
+        }
+    }
+
+    #region Callback on room list update
+    bool m;
+    bool n;
+    public override void OnRoomListUpdate(List<RoomInfo> roomList)
+    {
+        if (this.gameObject.activeSelf)
+        {
+            if (!PhotonNetwork.InRoom && PhotonNetwork.InLobby && !m)
+            {
+                m = true;
+                PhotonNetwork.LeaveLobby();
+            }
+
+            if (!PhotonNetwork.InRoom && PhotonNetwork.InLobby && n)
+            {
+                GetRandomMatcingRoom(roomList);
+            }
+        }
+
+    }
+    #endregion
+
+    #region Search for random matching rooms available
+    public void GetRandomMatcingRoom(List<RoomInfo> roomInfo)
+    {
+        if (GameState != GameState.Matchmaking)
+        {
+            return;
+        }
+
+        m = false;
+        n = false;
+
+        if (roomInfo == null || roomInfo.Count == 0)
+        {
+            return;
+        }
+
+        _matchmakingRooms = new List<RoomInfo>();
+
+        for (int i = 0; i < roomInfo.Count; i++)
+        {
+            int p = roomInfo[i].PlayerCount;
+            string n = roomInfo[i].Name;
+            int m = roomInfo[i].MaxPlayers;
+            object c = roomInfo[i].CustomProperties["RoomCreator"];
+
+            if (p != 0 && m != 0 && c != null)
+            {
+                if (n.Contains(RandomMatchKey))
+                {
+                    _matchmakingRooms.Add(roomInfo[i]);
+                }
+            }
+        }
+    }
+    #endregion
+
+    #region Callback when leaving the lobby
+    public override void OnLeftLobby()
+    {
+        if (this.gameObject.activeSelf)
+        {
+            if (m)
+            {
+                n = true;
+                PhotonNetwork.JoinLobby();
+            }
+        }
+
+    }
+    #endregion
+
+    #region Callback when joining a room fails
+    public override void OnJoinRoomFailed(short returnCode, string message)
+    {
+        if (this.gameObject.activeSelf && GameState == GameState.Matchmaking)
+        {
+            Debug.Log($"[RandomMatch] Join room failed: [{returnCode}] {message}, retrying...");
+            _matchmakingRooms = new List<RoomInfo>();
+            m = false;
+            n = false;
+
+            if (!PhotonNetwork.InLobby)
+            {
+                PhotonNetwork.JoinLobby();
+            }
+
+            StartRandomMatch();
+        }
+    }
+    #endregion
+
+    #region Process to create a room
+    public IEnumerator CreateRoomCoroutine(bool isRandomMatch)
+    {
+        yield return new WaitWhile(() => !PhotonNetwork.IsConnectedAndReady);
+        yield return new WaitWhile(() => !PhotonNetwork.InLobby);
+
+        //Setting up the room to be created
+        RoomOptions roomOptions = new RoomOptions
+        {
+            IsVisible = true,   //Make the room visible in the lobby.
+            IsOpen = true,      //Allow other players to enter the room
+            PublishUserId = true,
+
+            MaxPlayers = 2,
+
+            //To display room creator in room custom properties, store creator's name
+            CustomRoomProperties = new ExitGames.Client.Photon.Hashtable()
+            {
+                { "RoomCreator",PhotonNetwork.NickName },
+
+            },
+
+            //Display custom property information in the lobby
+            CustomRoomPropertiesForLobby = new string[]
+            {
+                "RoomCreator",
+            }
+        };
+
+        string RoomName = Guid.NewGuid().ToString();
+
+        if (isRandomMatch)
+        {
+            RoomName += RandomMatchKey;
+        }
+
+        //Room Creation
+        PhotonNetwork.CreateRoom(RoomName, roomOptions, null);
+
+        while (!PhotonNetwork.InRoom)
+        {
+            yield return null;
+        }
+    }
+    #endregion
+
+    #region Random match starts after entering the lobby
+    public void StartRandomMatch()
+    {
+        //If there is no room, make room.
+        if (_matchmakingRooms.Count == 0)
+        {
+            StartCoroutine(CreateRoomCoroutine(true));
+        }
+
+        //If there's room, I'll go in.
+        else
+        {
+            PhotonNetwork.JoinRoom(_matchmakingRooms[UnityEngine.Random.Range(0, _matchmakingRooms.Count)].Name);
+        }
+    }
+    #endregion
+
+    public void InitGame(Player[] players, GameNetworkEvents gameNetworkEvents)
+    {
+        _gameEvents = gameNetworkEvents;
+        _player = players;
     }
 
     private Player GetPlayerFromID(int playerID)

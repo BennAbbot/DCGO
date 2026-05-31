@@ -1109,8 +1109,6 @@ public class ContinuousController : MonoBehaviour
     }
     #endregion
 
-    public Coroutine LoadingTextCoroutine;
-
     bool _endBattle = false;
 
     public void EndBattle()
@@ -1164,7 +1162,7 @@ public class ContinuousController : MonoBehaviour
         if (isRandomMatch)
         {
             Debug.Log("Unload from Random Match");
-            yield return StartCoroutine(Opening.instance.battle.lobbyManager_RandomMatch.CloseLobbyCoroutine());
+            Opening.instance.battle.lobbyManager_RandomMatch.StopMatchmaking();
             yield return StartCoroutine(Opening.instance.battle.selectBattleMode.SetUpSelectBattleModeCoroutine());
         }
 

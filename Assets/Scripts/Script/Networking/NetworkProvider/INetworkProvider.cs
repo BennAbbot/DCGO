@@ -10,6 +10,7 @@ namespace DCGO.Networking
         Menu,
         Matchmaking,
         CustomRoom,
+        InGame,
         BotMatch
     }
 
@@ -28,9 +29,7 @@ namespace DCGO.Networking
     public struct MatchmakingEvents
     {
         public Action<bool> OnConnected;
-        public Action OnCanceled;
         public Action OnMatchFound;
-        public Action OnGameStart;
     }
 
     public interface INetworkProvider
@@ -38,13 +37,15 @@ namespace DCGO.Networking
         public GameNetworkEvents GameEvents { get; }
         public LobbyNetworkEvents LobbyEvents { get; }
 
+        public MatchmakingEvents MatchmakingEvents { get; }
+
         public GameState GameState { get; }
 
         public abstract void Initialise();
 
         public abstract void StartMatchmaking(MatchmakingEvents MatchmakingEvents);
 
-        public abstract GameNetworkEvents InitGame(Player[] players);
+        public abstract void InitGame(Player[] players, GameNetworkEvents gameNetworkEvents);
 
         abstract void SendMainPhaseAction(Player player, MainPhaseAction action);
         abstract void SendPlayerSelection(Player player, IPlayerSelection playerSelection);
