@@ -1162,7 +1162,7 @@ public class ContinuousController : MonoBehaviour
         if (isRandomMatch)
         {
             Debug.Log("Unload from Random Match");
-            Opening.instance.battle.lobbyManager_RandomMatch.StopMatchmaking();
+            yield return StartCoroutine(Opening.instance.battle.lobbyManager_RandomMatch.CloseLobbyCoroutine());
             yield return StartCoroutine(Opening.instance.battle.selectBattleMode.SetUpSelectBattleModeCoroutine());
         }
 

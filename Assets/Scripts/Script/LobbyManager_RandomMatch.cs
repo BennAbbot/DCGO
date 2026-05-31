@@ -1,10 +1,11 @@
+using DCGO.Networking;
+using Photon.Pun;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI;
 using UnityEngine.SceneManagement;
-using System;
-using DCGO.Networking;
+using UnityEngine.UI;
 
 public class LobbyManager_RandomMatch : MonoBehaviour
 {
@@ -62,6 +63,7 @@ public class LobbyManager_RandomMatch : MonoBehaviour
         MatchmakingEvents MatchmakingEvents = new MatchmakingEvents();
         MatchmakingEvents.OnConnected += HandleOnConnected;
         MatchmakingEvents.OnMatchFound += StateMatchFound;
+        MatchmakingEvents.OnCanceled += OnMatchmakingCanceled;
 
 
         DCGONetwork.Provider.StartMatchmaking(MatchmakingEvents);
@@ -139,10 +141,28 @@ public class LobbyManager_RandomMatch : MonoBehaviour
         yield return null;
     }
 
-
-    public void StopMatchmaking()
+    public void CloseLobby()
     {
-        CloseSelf();
+        ContinuousController.instance.StartCoroutine(CloseLobbyCoroutine());
+    }
+    public IEnumerator CloseLobbyCoroutine()
+    {
+        yield return ContinuousController.instance.StartCoroutine(disconnectLoadingObject.StartLoading("Now Loading"));
+        ReturnButton.SetActive(false);
+
+        DCGONetwork.Provider.CancelMatchmaking();
+    }
+
+    public void OnMatchmakingCanceled()
+    {
+        ContinuousController.instance.StartCoroutine(disconnectLoadingObject.StartLoading("Now Loading"));
+        Close();
+        ContinuousController.instance.StartCoroutine(disconnectLoadingObject.EndLoading());
+    }
+
+    public void Close()
+    {
+        this.gameObject.SetActive(false);
     }
 
     void CloseSelf()

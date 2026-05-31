@@ -30,6 +30,7 @@ namespace DCGO.Networking
     {
         public Action<bool> OnConnected;
         public Action OnMatchFound;
+        public Action OnCanceled;
     }
 
     public interface INetworkProvider
@@ -44,6 +45,7 @@ namespace DCGO.Networking
         public abstract void Initialise();
 
         public abstract void StartMatchmaking(MatchmakingEvents MatchmakingEvents);
+        public abstract void CancelMatchmaking();
 
         public abstract void InitGame(Player[] players, GameNetworkEvents gameNetworkEvents);
 

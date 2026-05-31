@@ -30,6 +30,8 @@ public class PunNetworkProvider : MonoBehaviourPunCallbacks, INetworkProvider
     List<RoomInfo> _rooms = new List<RoomInfo>();
     List<RoomInfo> _matchmakingRooms = null;
 
+    Coroutine _matchmakingCoroutine = null;
+
     public void Awake()
     {
         DCGONetwork.Provider = this;
@@ -40,15 +42,24 @@ public class PunNetworkProvider : MonoBehaviourPunCallbacks, INetworkProvider
         _gameState = GameState.Menu;
     }
 
+    #region Matchmaking
+
     public void StartMatchmaking(MatchmakingEvents MatchmakingEvents)
     {
         _matchmakingEvents = MatchmakingEvents;
         _gameState = GameState.Matchmaking;
-        StartCoroutine(MatchmakingCoroutine());
+        _matchmakingCoroutine = StartCoroutine(MatchmakingCoroutine());
+    }
+
+    public void CancelMatchmaking()
+    {
+        StartCoroutine(CancelMatchmakingCoroutine());
     }
 
     public IEnumerator MatchmakingCoroutine()
     {
+        _matchmakingRooms = null;
+
         if (PhotonNetwork.InLobby)
         {
             PhotonNetwork.LeaveLobby();
@@ -80,8 +91,6 @@ public class PunNetworkProvider : MonoBehaviourPunCallbacks, INetworkProvider
 
         yield return new WaitWhile(() => PhotonNetwork.CurrentRoom.PlayerCount != PhotonNetwork.CurrentRoom.MaxPlayers);
 
-        _gameState = GameState.InGame;
-
         if (PhotonNetwork.IsMasterClient)
         {
             PhotonNetwork.CurrentRoom.IsVisible = false;
@@ -90,6 +99,18 @@ public class PunNetworkProvider : MonoBehaviourPunCallbacks, INetworkProvider
         if (_matchmakingEvents.OnMatchFound != null)
         {
             _matchmakingEvents.OnMatchFound();
+        }
+    }
+
+    public IEnumerator CancelMatchmakingCoroutine()
+    {
+        StopCoroutine(_matchmakingCoroutine);
+
+        yield return PhotonUtility.DisconnectCoroutine();
+
+        if (_matchmakingEvents.OnCanceled != null)
+        {
+            _matchmakingEvents.OnCanceled();
         }
     }
 
@@ -226,8 +247,11 @@ public class PunNetworkProvider : MonoBehaviourPunCallbacks, INetworkProvider
     }
     #endregion
 
+    #endregion
+
     public void InitGame(Player[] players, GameNetworkEvents gameNetworkEvents)
     {
+        _gameState = GameState.InGame;
         _gameEvents = gameNetworkEvents;
         _player = players;
     }
