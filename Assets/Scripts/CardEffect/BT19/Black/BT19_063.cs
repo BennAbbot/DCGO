@@ -272,6 +272,31 @@ namespace DCGO.CardEffects.BT19
                             yield return ContinuousController.instance.StartCoroutine(new IDegeneration(permanent, 1, activateClass).Degeneration());
                         }
                     }
+
+                    if (CardEffectCommons.IsDijiXros(_hashtable, card, (count) => count == 2))
+                    {
+                        if (CardEffectCommons.HasMatchConditionPermanent(CanSelectPermanentCondition1))
+                        {
+                            int maxCount = Math.Min(1, CardEffectCommons.MatchConditionPermanentCount(CanSelectPermanentCondition1));
+
+                            SelectPermanentEffect selectPermanentEffect = GManager.instance.GetComponent<SelectPermanentEffect>();
+
+                            selectPermanentEffect.SetUp(
+                                selectPlayer: card.Owner,
+                                canTargetCondition: CanSelectPermanentCondition1,
+                                canTargetCondition_ByPreSelecetedList: null,
+                                canEndSelectCondition: null,
+                                maxCount: maxCount,
+                                canNoSelect: true,
+                                canEndNotMax: false,
+                                selectPermanentCoroutine: null,
+                                afterSelectPermanentCoroutine: null,
+                                mode: SelectPermanentEffect.Mode.Destroy,
+                                cardEffect: activateClass);
+
+                            yield return ContinuousController.instance.StartCoroutine(selectPermanentEffect.Activate());
+                        }
+                    }
                 }
             }
             #endregion
@@ -324,12 +349,12 @@ namespace DCGO.CardEffects.BT19
 
                 bool CanUseCondition(Hashtable hashtable)
                 {
-                    return CardEffectCommons.CanTriggerOnDeletion(hashtable, card);
+                    return CardEffectCommons.CanTriggerOnDeletion(hashtable, card, activateClass);
                 }
 
                 bool CanActivateCondition(Hashtable hashtable)
                 {
-                    return CardEffectCommons.CanActivateOnDeletion(hashtable, card) &&
+                    return CardEffectCommons.CanActivateOnDeletion(card, activateClass) &&
                            CardEffectCommons.HasMatchConditionPermanent(TamerHasDigimon);
                 }
 
@@ -444,12 +469,12 @@ namespace DCGO.CardEffects.BT19
 
                 bool CanUseCondition(Hashtable hashtable)
                 {
-                    return CardEffectCommons.CanTriggerOnDeletion(hashtable, card);
+                    return CardEffectCommons.CanTriggerOnDeletion(hashtable, card, activateClass);
                 }
 
                 bool CanActivateCondition(Hashtable hashtable)
                 {
-                    return CardEffectCommons.CanActivateOnDeletion( hashtable, card) &&
+                    return CardEffectCommons.CanActivateOnDeletion(card, activateClass) &&
                            CardEffectCommons.HasMatchConditionOwnersCardInTrash(card, HasKnightmonInText);
                 }
 
