@@ -1,12 +1,11 @@
+using DCGO.Networking;
+using System;
 using System.Collections;
 using System.Collections.Generic;
-using UnityEngine;
 using System.Linq;
-using Photon;
-using Photon.Pun;
-using System;
+using UnityEngine;
 
-public class SelectHandEffect : MonoBehaviourPunCallbacks
+public class SelectHandEffect : MonoBehaviour
 {
     public void SetUp(
         Player selectPlayer,
@@ -352,12 +351,12 @@ public class SelectHandEffect : MonoBehaviourPunCallbacks
 
                     if (!_isLocal)
                     {
-                        photonView.RPC("SetTargetHandCards", RpcTarget.All, _selectPlayer.PlayerID, CardIDs.ToArray());
+                        DCGONetwork.Provider.SendPlayerSelection(_selectPlayer, new CardSelection(CardIDs.ToArray()));
                     }
 
                     else
                     {
-                        SetTargetHandCards(_selectPlayer.PlayerID, CardIDs.ToArray());
+                        _selectPlayer.QueuePlayerSelection(new CardSelection(CardIDs.ToArray()));
                     }
 
                     GManager.instance.BackButton.CloseSelectCommandButton();
@@ -445,12 +444,12 @@ public class SelectHandEffect : MonoBehaviourPunCallbacks
                             {
                                 if (!_isLocal)
                                 {
-                                    photonView.RPC("SetTargetHandCards", RpcTarget.All, _selectPlayer.PlayerID, null);
+                                    DCGONetwork.Provider.SendPlayerSelection(_selectPlayer, new CardSelection());
                                 }
 
                                 else
                                 {
-                                    SetTargetHandCards(_selectPlayer.PlayerID, null);
+                                    _selectPlayer.QueuePlayerSelection(new CardSelection());
                                 }
                             }
                         }
@@ -527,7 +526,7 @@ public class SelectHandEffect : MonoBehaviourPunCallbacks
                                 }
                             }
 
-                            SetTargetHandCards(_selectPlayer.PlayerID, CardIDs != null ? CardIDs.ToArray() : null);
+                            _selectPlayer.QueuePlayerSelection(new CardSelection(CardIDs != null ? CardIDs.ToArray() : null));
                         }  
                     }
 
@@ -564,7 +563,7 @@ public class SelectHandEffect : MonoBehaviourPunCallbacks
                             }
                         }
 
-                        SetTargetHandCards(_selectPlayer.PlayerID, CardIDs != null ? CardIDs.ToArray() : null);
+                        _selectPlayer.QueuePlayerSelection(new CardSelection(CardIDs != null ? CardIDs.ToArray() : null));
 
                     }
                 }
@@ -923,20 +922,5 @@ public class SelectHandEffect : MonoBehaviourPunCallbacks
         GManager.instance.turnStateMachine.IsSelecting = oldIsSelecting;
 
     }
-
-    #region ƒJ[ƒh‘I‘ð‚ðŒˆ’è
-    [PunRPC]
-    public void SetTargetHandCards(int playerID, int[] CardIDs)
-    {
-        Player selectionPlayer = GManager.instance.GetPlayerFromID(playerID);
-
-        if (selectionPlayer == null)
-        {
-            return;
-        }
-
-        selectionPlayer.QueuePlayerSelection(new CardSelection(CardIDs));
-    }
-    #endregion
 }
 

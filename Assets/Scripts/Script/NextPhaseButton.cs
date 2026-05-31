@@ -1,4 +1,5 @@
-﻿using Photon;
+﻿using DCGO.Networking;
+using Photon;
 using Photon.Pun;
 using System;
 using System.Collections;
@@ -55,7 +56,7 @@ public class NextPhaseButton : MonoBehaviourPunCallbacks
                             turnStateMachine.SendShouldHatch(false);
                             break;
                         case GameContext.phase.Main:
-                            turnStateMachine.QueueMainPhaseAction(turnStateMachine.gameContext.TurnPlayer, new PassAction());
+                            DCGONetwork.Provider.SendMainPhaseAction(turnStateMachine.gameContext.TurnPlayer, new PassAction());
                             break;
                     }
 

@@ -1,0 +1,20 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace DCGO.Networking
+{
+    public class DCGONetwork : MonoBehaviour
+    {
+        public static INetworkProvider Provider { get; private set; }
+
+        [SerializeField]
+        INetworkProvider _provider;
+
+        public void Awake()
+        {
+            Provider = _provider;
+        }
+    }
+}

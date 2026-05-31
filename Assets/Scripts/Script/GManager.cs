@@ -1,4 +1,5 @@
-﻿using Photon.Pun;
+﻿using DCGO.Networking;
+using Photon.Pun;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -525,19 +526,19 @@ public class GManager : MonoBehaviourPun
         //Draw a card
         if (Input.GetKey(KeyCode.LeftControl) && Input.GetKeyDown(KeyCode.D))
         {
-            turnStateMachine.QueueMainPhaseAction(You, new CheatAction(You.PlayerID, CheatAction.Type.Draw));
+            DCGONetwork.Provider.SendMainPhaseAction(You, new CheatAction(You.PlayerID, CheatAction.Type.Draw));
         }
 
         //Trash a card
         if (Input.GetKey(KeyCode.LeftControl) && Input.GetKeyDown(KeyCode.T))
         {
-            turnStateMachine.QueueMainPhaseAction(You, new CheatAction(You.PlayerID, CheatAction.Type.TrashCard));
+            DCGONetwork.Provider.SendMainPhaseAction(You, new CheatAction(You.PlayerID, CheatAction.Type.TrashCard));
         }
 
         //Top deck a card
         if (Input.GetKey(KeyCode.LeftControl) && Input.GetKeyDown(KeyCode.L))
         {
-            turnStateMachine.QueueMainPhaseAction(You, new CheatAction(You.PlayerID, CheatAction.Type.PlaceCardOnDeck));
+            DCGONetwork.Provider.SendMainPhaseAction(You, new CheatAction(You.PlayerID, CheatAction.Type.PlaceCardOnDeck));
         }
 
         //Place Top Security
@@ -546,24 +547,24 @@ public class GManager : MonoBehaviourPun
             bool keyInput = Input.GetKey(KeyCode.LeftShift);
             if (keyInput)
             {
-                turnStateMachine.QueueMainPhaseAction(You, new CheatAction(You.PlayerID, CheatAction.Type.PlaceCardInSecurity));
+                DCGONetwork.Provider.SendMainPhaseAction(You, new CheatAction(You.PlayerID, CheatAction.Type.PlaceCardInSecurity));
             }
             else
             {
-                turnStateMachine.QueueMainPhaseAction(You, new CheatAction(You.PlayerID, CheatAction.Type.PlaceCardInSecurityFaceup));
+                DCGONetwork.Provider.SendMainPhaseAction(You, new CheatAction(You.PlayerID, CheatAction.Type.PlaceCardInSecurityFaceup));
             }
         }
 
         //Gain Memory
         if(Input.GetKey(KeyCode.LeftControl) && Input.GetKeyDown(KeyCode.Equals))
         {
-            turnStateMachine.QueueMainPhaseAction(You, new CheatAction(You.PlayerID, CheatAction.Type.GainMemory));
+            DCGONetwork.Provider.SendMainPhaseAction(You, new CheatAction(You.PlayerID, CheatAction.Type.GainMemory));
         }
 
         //Lose Memory
         if (Input.GetKey(KeyCode.LeftControl) && Input.GetKeyDown(KeyCode.Minus))
         {
-            turnStateMachine.QueueMainPhaseAction(You, new CheatAction(You.PlayerID, CheatAction.Type.LoseMemory));
+            DCGONetwork.Provider.SendMainPhaseAction(You, new CheatAction(You.PlayerID, CheatAction.Type.LoseMemory));
         }
             
     }

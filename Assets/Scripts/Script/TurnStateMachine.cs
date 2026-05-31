@@ -1,4 +1,5 @@
-﻿using Photon.Pun;
+﻿using DCGO.Networking;
+using Photon.Pun;
 using Photon.Pun.Demo.PunBasics;
 using Photon.Realtime;
 using System;
@@ -385,7 +386,7 @@ public class TurnStateMachine : MonoBehaviourPunCallbacks
             {
                 if (GManager.instance.isAuto && GManager.instance.IsAI)
                 {
-                    SetRedraw(player.PlayerID, RandomUtility.IsSucceedProbability(0.5f));
+                    player.QueuePlayerSelection(new ValueSelection(RandomUtility.IsSucceedProbability(0.5f)));
                 }
 
                 else
@@ -406,8 +407,8 @@ public class TurnStateMachine : MonoBehaviourPunCallbacks
                         Message: message,
                         NotSelectButtonMessage: "Keep Hand",
                         EndSelectButtonMessage: "Mulligan",
-                        _OnClickNotSelectButtonAction: () => SetRedraw_RPC(player.PlayerID, false),
-                        _OnClickEndSelectButtonAction: () => SetRedraw_RPC(player.PlayerID, true),
+                        _OnClickNotSelectButtonAction: () => DCGONetwork.Provider.SendPlayerSelection(player, new ValueSelection(false)),
+                        _OnClickEndSelectButtonAction: () => DCGONetwork.Provider.SendPlayerSelection(player, new ValueSelection(true)),
                         RootCardSources: player.HandCards,
                         _CanTargetCondition: (cardSource) => false,
                         _CanTargetCondition_ByPreSelecetedList: null,
@@ -418,11 +419,6 @@ public class TurnStateMachine : MonoBehaviourPunCallbacks
                         CanLookReverseCard: true,
                         skillInfos: null,
                         root: SelectCardEffect.Root.None));
-
-                    void SetRedraw_RPC(int playerId, bool _isDraw)
-                    {
-                        photonView.RPC("SetRedraw", RpcTarget.All, playerId, _isDraw);
-                    }
                 }
             }
 
@@ -438,7 +434,7 @@ public class TurnStateMachine : MonoBehaviourPunCallbacks
                         doRedraw = true;
                     }
 
-                    SetRedraw(player.PlayerID, doRedraw);
+                    player.QueuePlayerSelection(new ValueSelection(doRedraw));
                 }
                 #endregion
             }
@@ -501,28 +497,6 @@ public class TurnStateMachine : MonoBehaviourPunCallbacks
         #endregion
 
         DoneStartGame = true;
-    }
-
-    [PunRPC]
-    public void SetStartPlayer(bool doChange)
-    {
-        if (doChange)
-        {
-            gameContext.TurnPlayer = gameContext.NonTurnPlayer;
-        }
-    }
-
-    [PunRPC]
-    void SetRedraw(int playerID, bool isRedraw)
-    {
-        Player selectionPlayer = GManager.instance.GetPlayerFromID(playerID);
-
-        if (selectionPlayer == null)
-        {
-            return;
-        }
-
-        selectionPlayer.QueuePlayerSelection(new ValueSelection(isRedraw));
     }
     #endregion
 
@@ -780,14 +754,14 @@ public class TurnStateMachine : MonoBehaviourPunCallbacks
                         doHatch = true;
                     }
 
-                    SetBreedingPhase(gameContext.TurnPlayer.PlayerID, doHatch);
+                    gameContext.TurnPlayer.QueuePlayerSelection(new ValueSelection(doHatch));
                 }
                 #endregion
             }
 
             yield return new WaitWhile(() => !gameContext.TurnPlayer.HasPlayerSelection() && gameContext.TurnPhase == GameContext.phase.Breeding);
             ValueSelection breedSelection = gameContext.TurnPlayer.DequeuePlayerSelection<ValueSelection>();
-            doAction_BreedingPhase = breedSelection != null ? breedSelection.ValueAsBool() : false;
+            bool doAction_BreedingPhase = breedSelection != null ? breedSelection.ValueAsBool() : false;
 
             GManager.instance.hideCannotSelectObject.Close();
             gameContext.TurnPlayer.OffHatchObject();
@@ -839,22 +813,9 @@ public class TurnStateMachine : MonoBehaviourPunCallbacks
     public void SendShouldHatch(bool shouldHatch)
     {
         gameContext.TurnPlayer.OffHatchObject();
-        photonView.RPC("SetBreedingPhase", RpcTarget.All, gameContext.TurnPlayer.PlayerID, shouldHatch);
+        DCGONetwork.Provider.SendPlayerSelection(gameContext.TurnPlayer, new ValueSelection(shouldHatch));
     }
 
-    bool doAction_BreedingPhase = false;
-    [PunRPC]
-    public void SetBreedingPhase(int playerID, bool doBreeding)
-    {
-        Player selectionPlayer = GManager.instance.GetPlayerFromID(playerID);
-
-        if (selectionPlayer == null)
-        {
-            return;
-        }
-
-        selectionPlayer.QueuePlayerSelection(new ValueSelection(doBreeding));
-    }
     #endregion
 
     #region main phase
@@ -1499,7 +1460,7 @@ public class TurnStateMachine : MonoBehaviourPunCallbacks
                                         }
                                         #endregion
 
-                                        QueueMainPhaseAction(gameContext.TurnPlayer, new ActivatePermanentAction(fieldPermanentCard.ThisPermanent.TopCard.Owner.GetFieldPermanents().IndexOf(fieldPermanentCard.ThisPermanent), cardEffects1.IndexOf(cardEffect)));
+                                        DCGONetwork.Provider.SendMainPhaseAction(gameContext.TurnPlayer, new ActivatePermanentAction(fieldPermanentCard.ThisPermanent.TopCard.Owner.GetFieldPermanents().IndexOf(fieldPermanentCard.ThisPermanent), cardEffects1.IndexOf(cardEffect)));
                                     }
                                 }
                             }
@@ -1596,7 +1557,7 @@ public class TurnStateMachine : MonoBehaviourPunCallbacks
 
                                             if (doAttack)
                                             {
-                                                QueueMainPhaseAction(gameContext.TurnPlayer, new AttackPermanentAction(fieldPermanentCard.ThisPermanent.TopCard.Owner.GetFieldPermanents().IndexOf(fieldPermanentCard.ThisPermanent), -1));
+                                                DCGONetwork.Provider.SendMainPhaseAction(gameContext.TurnPlayer, new AttackPermanentAction(fieldPermanentCard.ThisPermanent.TopCard.Owner.GetFieldPermanents().IndexOf(fieldPermanentCard.ThisPermanent), -1));
                                             }
 
                                             else
@@ -1690,7 +1651,7 @@ public class TurnStateMachine : MonoBehaviourPunCallbacks
 
                                         if (doAttack)
                                         {
-                                            QueueMainPhaseAction(gameContext.TurnPlayer, new AttackPermanentAction(fieldPermanentCard.ThisPermanent.TopCard.Owner.GetFieldPermanents().IndexOf(fieldPermanentCard.ThisPermanent), attackTargetID));
+                                            DCGONetwork.Provider.SendMainPhaseAction(gameContext.TurnPlayer, new AttackPermanentAction(fieldPermanentCard.ThisPermanent.TopCard.Owner.GetFieldPermanents().IndexOf(fieldPermanentCard.ThisPermanent), attackTargetID));
                                         }
 
                                         else
@@ -1930,7 +1891,7 @@ public class TurnStateMachine : MonoBehaviourPunCallbacks
                                                     #endregion
 
                                                     //gameContext.NonTurnPlayer.LifeCardFrame.OffFrame_Select();
-                                                    QueueMainPhaseAction(gameContext.TurnPlayer, new AttackPermanentAction(gameContext.TurnPlayer.GetFieldPermanents().IndexOf(fieldPermanentCard2.ThisPermanent), gameContext.NonTurnPlayer.GetFieldPermanents().IndexOf(enemyFieldPermanentCard.ThisPermanent)));
+                                                    DCGONetwork.Provider.SendMainPhaseAction(gameContext.TurnPlayer, new AttackPermanentAction(gameContext.TurnPlayer.GetFieldPermanents().IndexOf(fieldPermanentCard2.ThisPermanent), gameContext.NonTurnPlayer.GetFieldPermanents().IndexOf(enemyFieldPermanentCard.ThisPermanent)));
                                                     return;
                                                 }
                                             }
@@ -1956,7 +1917,7 @@ public class TurnStateMachine : MonoBehaviourPunCallbacks
                                                     }
                                                 }
                                                 #endregion
-                                                QueueMainPhaseAction(gameContext.TurnPlayer, new AttackPermanentAction(gameContext.TurnPlayer.GetFieldPermanents().IndexOf(fieldPermanentCard2.ThisPermanent), -1));
+                                                DCGONetwork.Provider.SendMainPhaseAction(gameContext.TurnPlayer, new AttackPermanentAction(gameContext.TurnPlayer.GetFieldPermanents().IndexOf(fieldPermanentCard2.ThisPermanent), -1));
                                                 return;
                                             }
                                         }
@@ -2356,7 +2317,7 @@ public class TurnStateMachine : MonoBehaviourPunCallbacks
                                                             IEnumerator _EndSelectCoroutine_SelectDigivolutionRoots(List<Permanent> permanents)
                                                             {
                                                                 yield return null;
-                                                                QueueMainPhaseAction(gameContext.TurnPlayer, new PlayCardAction(handCard.cardSource.CardIndex, fieldCardFrame.FrameID, new int[] { permanents[0].PermanentFrame.FrameID, permanents[1].PermanentFrame.FrameID }, -1, new int[0]));
+                                                                DCGONetwork.Provider.SendMainPhaseAction(gameContext.TurnPlayer, new PlayCardAction(handCard.cardSource.CardIndex, fieldCardFrame.FrameID, new int[] { permanents[0].PermanentFrame.FrameID, permanents[1].PermanentFrame.FrameID }, -1, new int[0]));
                                                             }
 
                                                             IEnumerator _NoSelectCoroutine()
@@ -2403,7 +2364,7 @@ public class TurnStateMachine : MonoBehaviourPunCallbacks
                                                             IEnumerator EndSelectCoroutine_SelectTamer(Permanent permanent)
                                                             {
                                                                 yield return null;
-                                                                QueueMainPhaseAction(gameContext.TurnPlayer, new PlayCardAction(handCard.cardSource.CardIndex, fieldCardFrame.FrameID, new int[0], permanent.PermanentFrame.FrameID, new int[0]));
+                                                                DCGONetwork.Provider.SendMainPhaseAction(gameContext.TurnPlayer, new PlayCardAction(handCard.cardSource.CardIndex, fieldCardFrame.FrameID, new int[0], permanent.PermanentFrame.FrameID, new int[0]));
                                                             }
 
                                                             IEnumerator _NoSelectCoroutine()
@@ -2450,7 +2411,7 @@ public class TurnStateMachine : MonoBehaviourPunCallbacks
                                                             {
                                                                 yield return null;
 
-                                                                QueueMainPhaseAction(gameContext.TurnPlayer, new PlayCardAction(handCard.cardSource.CardIndex, fieldCardFrame.FrameID, new int[0], -1, new int[] { targetPermanent.PermanentFrame.FrameID, targetPermanent.LinkedCards.IndexOf(cardSource) }));
+                                                                DCGONetwork.Provider.SendMainPhaseAction(gameContext.TurnPlayer, new PlayCardAction(handCard.cardSource.CardIndex, fieldCardFrame.FrameID, new int[0], -1, new int[] { targetPermanent.PermanentFrame.FrameID, targetPermanent.LinkedCards.IndexOf(cardSource) }));
                                                             }
 
                                                             IEnumerator _NoSelectCoroutine()
@@ -2465,7 +2426,7 @@ public class TurnStateMachine : MonoBehaviourPunCallbacks
                                                     #region usually evolves
                                                     void Digivolution()
                                                     {
-                                                        QueueMainPhaseAction(gameContext.TurnPlayer, new PlayCardAction(handCard.cardSource.CardIndex, fieldCardFrame.FrameID, new int[0], -1, new int[0]));
+                                                        DCGONetwork.Provider.SendMainPhaseAction(gameContext.TurnPlayer, new PlayCardAction(handCard.cardSource.CardIndex, fieldCardFrame.FrameID, new int[0], -1, new int[0]));
                                                     }
                                                     #endregion
 
@@ -2518,7 +2479,7 @@ public class TurnStateMachine : MonoBehaviourPunCallbacks
                                             GManager.instance.You.playMatCardFrame.RemoveClickTarget();
                                             GManager.instance.You.playMatCardFrame.Frame.transform.parent.gameObject.SetActive(false);
 
-                                            QueueMainPhaseAction(gameContext.TurnPlayer, new PlayCardAction(handCard.cardSource.CardIndex, handCard.cardSource.PreferredFrame().FrameID, new int[0], -1, new int[0]));
+                                            DCGONetwork.Provider.SendMainPhaseAction(gameContext.TurnPlayer, new PlayCardAction(handCard.cardSource.CardIndex, handCard.cardSource.PreferredFrame().FrameID, new int[0], -1, new int[0]));
                                             selected = true;
 
                                             return;
@@ -2555,7 +2516,7 @@ public class TurnStateMachine : MonoBehaviourPunCallbacks
                                         GManager.instance.You.playMatCardFrame.RemoveClickTarget();
                                         GManager.instance.You.playMatCardFrame.Frame.transform.parent.gameObject.SetActive(false);
 
-                                        QueueMainPhaseAction(gameContext.TurnPlayer, new PlayCardAction(handCard.cardSource.CardIndex, 0, new int[0], -1, new int[0]));
+                                        DCGONetwork.Provider.SendMainPhaseAction(gameContext.TurnPlayer, new PlayCardAction(handCard.cardSource.CardIndex, 0, new int[0], -1, new int[0]));
                                         selected = true;
 
                                         return;
@@ -2847,7 +2808,7 @@ public class TurnStateMachine : MonoBehaviourPunCallbacks
 
                                         handCard.GetComponent<Draggable_HandCard>().CanPointerEnterExitAction = true;
 
-                                        QueueMainPhaseAction(gameContext.TurnPlayer, new ActivateCardAction(handCard.cardSource.CardIndex, cardEffects1.IndexOf(cardEffect)));
+                                        DCGONetwork.Provider.SendMainPhaseAction(gameContext.TurnPlayer, new ActivateCardAction(handCard.cardSource.CardIndex, cardEffects1.IndexOf(cardEffect)));
                                     }
                                 }
                             }
@@ -3019,31 +2980,6 @@ public class TurnStateMachine : MonoBehaviourPunCallbacks
 
         GManager.instance.commandText.CloseCommandText();
     }
-    #endregion
-
-    #region Queue Main Phase Action
-    public void QueueMainPhaseAction(Player player, MainPhaseAction action)
-    {
-        photonView.RPC("QueueMainPhaseAction_Internal", RpcTarget.All, player.PlayerID, GamePacketFactory.GetId(action.GetType()), action.Serialize());
-    }
-
-    [PunRPC]
-    void QueueMainPhaseAction_Internal(int playerID, byte packetId, byte[] bytes)
-    {
-        Player player = GManager.instance.GetPlayerFromID(playerID);
-        
-        if (player == null)
-        {
-            return;
-        }
-
-        MainPhaseAction action = GamePacketFactory.Create(packetId, bytes) as MainPhaseAction;
-        if (action != null)
-        {
-            player.QueueMainPhaseAction(action);
-        }
-    }
-
     #endregion
 
     #region Activation effect permanent determination

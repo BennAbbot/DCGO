@@ -1,6 +1,4 @@
-using Photon;
-using Photon.Pun;
-using Photon.Realtime;
+using DCGO.Networking;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -550,8 +548,6 @@ public partial class CardEffectCommons
         bool processSuccessful = false;
         if (dnaTarget != null)
         {
-            Component component = activateClass.EffectSourceCard.cEntity_EffectController.gameObject.AddComponent(typeof (SetJogressEvoRootsController));
-            SetJogressEvoRootsController controller = (SetJogressEvoRootsController)component;
             int[] _jogressEvoRootsFrameIDs = new int[0];
 
             if (owner.isYou || GManager.instance.IsAI)
@@ -579,7 +575,7 @@ public partial class CardEffectCommons
                     yield return null;
                 }
 
-                controller.photonView.RPC("SetJogressEvoRootsFrameIDs", RpcTarget.All, owner.PlayerID, _jogressEvoRootsFrameIDs);
+                DCGONetwork.Provider.SendPlayerSelection(owner, new PermanentSelection(null, _jogressEvoRootsFrameIDs));
             }
             else
             {
@@ -652,23 +648,6 @@ public partial class CardEffectCommons
 
         bool FullPermanentCondition2(Permanent permanent) => PermanentCondition(permanent) && permanentCondition2 != null && permanentCondition2(permanent);
     }
-
-    //Private class used to register the callback so this doesn't need to be defined in every card that uses DNA by effect
-    private class SetJogressEvoRootsController : MonoBehaviourPunCallbacks
-    {
-        [PunRPC]
-        public void SetJogressEvoRootsFrameIDs(int playerID, int[] jogressEvoRootsFrameIDs)
-        {
-            Player selectionPlayer = GManager.instance.GetPlayerFromID(playerID);
-
-            if (selectionPlayer == null)
-            {
-                return;
-            }
-
-            selectionPlayer.QueuePlayerSelection(new PermanentSelection(null, jogressEvoRootsFrameIDs));
-        }
-    } 
 
     #endregion
 }
