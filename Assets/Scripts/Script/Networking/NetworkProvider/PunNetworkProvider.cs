@@ -4,6 +4,7 @@ using Photon.Realtime;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using static LobbyManager_FriendMatch;
 using Hashtable = ExitGames.Client.Photon.Hashtable;
@@ -26,7 +27,8 @@ public class PunNetworkProvider : MonoBehaviourPunCallbacks, INetworkProvider
 
     string RandomMatchKey = "RandomMatchKey";
 
-    List<RoomInfo> _matchmakingRooms = new List<RoomInfo>();
+    List<RoomInfo> _rooms = new List<RoomInfo>();
+    List<RoomInfo> _matchmakingRooms = null;
 
     public void Awake()
     {
@@ -70,14 +72,20 @@ public class PunNetworkProvider : MonoBehaviourPunCallbacks, INetworkProvider
             _matchmakingEvents.OnConnected(true);
         }
 
-        StartRandomMatch();
+        yield return new WaitWhile(() => _matchmakingRooms == null);
+
+        CreateOrJoinRandomMatch();
 
         yield return new WaitWhile(() => !PhotonNetwork.InRoom);
 
         yield return new WaitWhile(() => PhotonNetwork.CurrentRoom.PlayerCount != PhotonNetwork.CurrentRoom.MaxPlayers);
 
         _gameState = GameState.InGame;
-        PhotonNetwork.CurrentRoom.IsVisible = false;
+
+        if (PhotonNetwork.IsMasterClient)
+        {
+            PhotonNetwork.CurrentRoom.IsVisible = false;
+        }
 
         if (_matchmakingEvents.OnMatchFound != null)
         {
@@ -86,44 +94,38 @@ public class PunNetworkProvider : MonoBehaviourPunCallbacks, INetworkProvider
     }
 
     #region Callback on room list update
-    bool m;
-    bool n;
     public override void OnRoomListUpdate(List<RoomInfo> roomList)
     {
-        if (this.gameObject.activeSelf)
+        foreach (RoomInfo info in roomList)
         {
-            if (!PhotonNetwork.InRoom && PhotonNetwork.InLobby && !m)
+            if (info.RemovedFromList)
             {
-                m = true;
-                PhotonNetwork.LeaveLobby();
+                _rooms.RemoveAll(r => r.Name == info.Name);
             }
-
-            if (!PhotonNetwork.InRoom && PhotonNetwork.InLobby && n)
+            else if (!_rooms.Any(r => r.Name == info.Name))
             {
-                GetRandomMatcingRoom(roomList);
+                _rooms.Add(info);
+            }
+            else
+            {
+                int index = _rooms.FindIndex(r => r.Name == info.Name);
+                _rooms[index] = info;
             }
         }
 
+        GetRandomMatcingRoom(_rooms);
     }
     #endregion
 
     #region Search for random matching rooms available
     public void GetRandomMatcingRoom(List<RoomInfo> roomInfo)
     {
-        if (GameState != GameState.Matchmaking)
-        {
-            return;
-        }
-
-        m = false;
-        n = false;
+        _matchmakingRooms = new List<RoomInfo>();
 
         if (roomInfo == null || roomInfo.Count == 0)
         {
             return;
         }
-
-        _matchmakingRooms = new List<RoomInfo>();
 
         for (int i = 0; i < roomInfo.Count; i++)
         {
@@ -143,37 +145,20 @@ public class PunNetworkProvider : MonoBehaviourPunCallbacks, INetworkProvider
     }
     #endregion
 
-    #region Callback when leaving the lobby
-    public override void OnLeftLobby()
-    {
-        if (this.gameObject.activeSelf)
-        {
-            if (m)
-            {
-                n = true;
-                PhotonNetwork.JoinLobby();
-            }
-        }
-
-    }
-    #endregion
-
     #region Callback when joining a room fails
     public override void OnJoinRoomFailed(short returnCode, string message)
     {
         if (this.gameObject.activeSelf && GameState == GameState.Matchmaking)
         {
             Debug.Log($"[RandomMatch] Join room failed: [{returnCode}] {message}, retrying...");
-            _matchmakingRooms = new List<RoomInfo>();
-            m = false;
-            n = false;
+            _matchmakingRooms = null;
 
             if (!PhotonNetwork.InLobby)
             {
                 PhotonNetwork.JoinLobby();
             }
 
-            StartRandomMatch();
+            CreateOrJoinRandomMatch();
         }
     }
     #endregion
@@ -225,10 +210,10 @@ public class PunNetworkProvider : MonoBehaviourPunCallbacks, INetworkProvider
     #endregion
 
     #region Random match starts after entering the lobby
-    public void StartRandomMatch()
+    public void CreateOrJoinRandomMatch()
     {
         //If there is no room, make room.
-        if (_matchmakingRooms.Count == 0)
+        if (_matchmakingRooms == null || _matchmakingRooms.Count == 0)
         {
             StartCoroutine(CreateRoomCoroutine(true));
         }
@@ -322,6 +307,8 @@ public class PunNetworkProvider : MonoBehaviourPunCallbacks, INetworkProvider
 
     void OnEnable()
     {
+        base.OnEnable();
+         
         var listener = new PhotonDebugListener();
         _connectionCallbacks = listener;
         _matchmakingCallbacks = listener;
@@ -331,6 +318,8 @@ public class PunNetworkProvider : MonoBehaviourPunCallbacks, INetworkProvider
 
     void OnDisable()
     {
+        base.OnDisable();
+
         if (_connectionCallbacks != null)
             PhotonNetwork.RemoveCallbackTarget(_connectionCallbacks);
     }
